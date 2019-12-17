@@ -19,9 +19,16 @@ ui <- fluidPage(
                   choices = names(gapminder::gapminder_unfiltered),
                   selected = 'pop'),
       # year selector
-      selectInput(inputId = 'year', label = 'Year:',
-                  choices = sort(unique(gapminder::gapminder_unfiltered$year)),
-                  selected = '1950')
+      sliderInput(inputId = 'year', label = 'Year:',
+                  #choices = sort(unique(gapminder::gapminder_unfiltered$year)),
+                  #selected = '1950'
+                  min = 1950,
+                  max = 2007,
+                  value = 1950,
+                  sep = '',
+                  step = 1,
+                  round = TRUE
+                  )
   ),
   
   # Output

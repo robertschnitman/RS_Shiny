@@ -3,6 +3,8 @@ server <- function(input, output) {
   library(plotly)
   #auto <- read.csv('auto.csv', stringsAsFactors = FALSE)  
   
+  #options(shiny.maxRequestSize=1000*1024^2) # https://stackoverflow.com/questions/18037737/how-to-change-maximum-upload-size-exceeded-restriction-in-shiny-and-save-user # 30 MB upload
+  
   output$scatterplot <- plotly::renderPlotly({ # This is what the outputId is set to!!
     
     g <- ggplot(subset(gapminder::gapminder_unfiltered, year == input$year)) + 
