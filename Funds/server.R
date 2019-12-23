@@ -95,9 +95,11 @@ server <- function(input, output) {
            y = 'Mean Daily Returns (%)',
            fill = '',
            title = paste0('Average Daily % Returns Since ', min(stocks$Date))) + 
+      guides(fill = FALSE) + 
       theme_light() +
       theme(panel.grid.major.x = element_blank(),
-            panel.grid.minor.x = element_blank())
+            panel.grid.minor.x = element_blank(),
+            legend.position = 'none')
     
     ggplotly(b, width = 1200, height = 800)
     
