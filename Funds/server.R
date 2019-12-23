@@ -3,8 +3,17 @@ server <- function(input, output) {
   ### 1. Load libraries and data
   library(tidyverse)
   library(plotly)
+  library(magrittr)
   library(knitr)
   library(kableExtra)
+  library(quantmod)
+  
+  
+  format_pct <- function(x, d) {
+    
+    apply(x, 2, function(x) ifelse(!is.na(x), paste0(round(x, d), '%'), ''))
+    
+  }
   
   funds <- c('SWPPX', 'ROGSX', 'SWMCX', 'SCHH', 'SCHM', 'SCHK', 'SCHF')
   
@@ -54,14 +63,44 @@ server <- function(input, output) {
                       }) 
   # REFERENCE: https://magesblog.com/post/2013-04-30-how-to-change-alpha-value-of-colours-in/
   
+  ### 5. For potg
+  funds_data2 <- list(SWPPX, ROGSX, SWMCX, SCHH, SCHM, SCHK, SCHF)
+  
+  ret_yr <- map(funds_data2, yearlyReturn) %>%
+    set_names(funds) %>%
+    map2(funds, ~ {
+      
+      colnames(.x)[1] <- .y
+      
+      .x
+      
+    }) %>%
+    map(~ format_pct(.x*100, 2))
+  
+  ret_yr2 <- map(ret_yr, as.data.frame, stringsAsFactors = FALSE) %>%
+    map(~ mutate(.x, Date = rownames(.x))) %>%
+    plyr::join_all(., by = 'Date') %>%
+    select(Date, everything()) %>%
+    map_df(~ replace(.x, is.na(.x), '-')) %>%
+    as.data.frame()
+  
+  rownames(ret_yr2) <- ret_yr2$Date
+  
+  ret_yr2$Date <- NULL
+  
+  ret_yr2 <- ret_yr2[, sort(colnames(ret_yr2))]
+  
   
   ### Scatterplot
   output$scatterplot <- plotly::renderPlotly({ # This is what the outputId is set to!!
     
+    stocks2 %<>%
+      mutate(Date = stocks$Date)
+    
     g <- ggplot(stocks2) + 
       aes_string(y = input$y,         # From ui.R's selectInput lines.
                  x = input$x)  + 
-      geom_jitter(alpha = 0.8, col = 'purple', aes(label = stocks$Date)) +
+      geom_jitter(alpha = 0.8, col = 'purple', aes(label = Date)) + #stocks$Date)) +
       scale_size(range = c(2.5, 6)) +
       guides(color = FALSE, size = FALSE) + 
       labs(col = '',
@@ -78,14 +117,16 @@ server <- function(input, output) {
   })
   
   
-  ### Bar chart
+  ### Bar chart 1
   output$bars <- plotly::renderPlotly({
     
     msd2 <- as.data.frame(msd2) %>%
       mutate(Fund = rownames(msd2))
     
+    msd2$Fund %<>% reorder(., -msd2$Mean)
+    
     b <- ggplot(msd2, 
-                aes(x = reorder(Fund, -Mean), 
+                aes(x = Fund, #reorder(Fund, -Mean), 
                     y = Mean, 
                     fill = Fund)) + 
       geom_col(alpha = 0.5) + 
@@ -108,12 +149,6 @@ server <- function(input, output) {
   ### Table
   output$table <- renderTable({
     
-    format_pct <- function(x, d) {
-      
-      apply(x, 2, function(x) ifelse(!is.na(x), paste0(round(x, d), '%'), ''))
-      
-    }
-    
     msd3 <- format_pct(msd2, 2)[order(-msd2[, 'Mean']), ]
     
     msd3 %>%
@@ -124,6 +159,41 @@ server <- function(input, output) {
       #kable_styling(full_width = TRUE)
     
     
+
+    
+  })
+  
+  ### Performance over time (graph)
+  output$potg <- plotly::renderPlotly({
+    
+    ret_yr3 <- ret_yr2 %>%
+    map_df(~ gsub('%', '', .x)) %>%
+    map_df(as.numeric) %>%
+    mutate(Date = rownames(ret_yr2))
+  
+  pivot <- ret_yr3 %>%
+    gather(Fund, Annual_return, 1:(NCOL(.)-1))
+  
+  pivot$Date %<>% as.Date()
+  
+  ggplot(pivot) + 
+    aes(y = Annual_return, x = Date, fill = Fund) + 
+    scale_fill_manual(values = mycolors) +
+    geom_col(alpha = 0.5, position = 'dodge') + 
+    labs(y = 'Annual Return (%)',
+         x = 'Date',
+         title = 'Annual Returns of Funds') +
+    theme_light()
+  
+  
+  })
+  ### Performance over time (table)
+  
+  output$pott <- renderTable({
+    
+    ret_yr2 %>%
+      mutate(Date = rownames(.)) %>%
+      select(Date, everything())
 
     
   })
